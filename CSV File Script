@@ -1,0 +1,46 @@
+#
+# Author: Jesse McNicoll
+# Title: firstScript.ps1
+# Creation Date: 7/21/2017
+#
+# Description: This script creates a csv file of three fields--one for a utensil, one for a quantity, 
+# 		and the last for a need-by date.  Once all of this is filled out,
+# 		the script is complete. It takes a parameter of number of records to create and also
+#		the name of the new csv file.  
+#
+# Parameters: 
+#	NewFileName
+#		A string variable to hold the name of the new csv file
+#	NumberOfRecords
+#		An integer variable to hold the number of records to be made.
+#
+# Modifications:
+#	7-21-2017
+#		-Date created
+#
+
+Param(
+	[string]$NewFileName,
+	[int]$NumberOfRecords
+)
+
+#Create the file
+New-Item c:\Users\jessem\DataFiles\$NewFileName -type file
+
+#Add headers to the new csv file 
+Add-Content -Path C:\Users\jessem\DataFiles\$NewFileName -Value 'Fork/Knife/Spoon, Quantity, NeedByDate'
+
+#Set minimum and maximum dates for generating random dates later in the script
+$dateMin = get-date
+$dateMin = $dateMin.AddDays(1)
+$dateMax = $dateMin.AddDays(13)
+
+
+For($i = 0; $i -lt $NumberOfRecords; $i++){
+	$RandUtensil = Get-Random -InputObject "Fork", "Knife", "Spoon"
+	$RandQuantity = Get-Random -Maximum 100 
+	$RandDate = new-object datetime(Get-Random -min $dateMin.ticks -max $dateMax.ticks)
+	$dateString = $RandDate.ToShortDateString()
+	Add-Content -Path C:\Users\jessem\DataFiles\$NewFileName -value "$RandUtensil, $RandQuantity, $dateString"
+}
+
