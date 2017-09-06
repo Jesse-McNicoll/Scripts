@@ -66,25 +66,26 @@ Function SizeConverter($InputSize){
 		
 #Set up the parameters for the script to allow proper parsing of inputs.
 Param(
-	[String]$InFilePath, 
-	[int]$PartNumCol = 1, 
-	[String]$PermuteCol = 2,
+	[String]$InFilePath,  
+	[Int]$PartNumCol = 1, 
+	[string]$PermuteCol = 2,
 	[int]$StartingRow = 2,
-	[char]$Separator = '-'
-	[String]$OutFileName = "OutputFile.csv", #The name of the new excel file
-	[String]$FolderName = "$env:SystemDrive\Users\$env:UserName\My Documents",
-	[int]$ActiveSheet = 1
-	[char]$RangeSeparator = '-'
+	[string]$Separator = '-',
+	[string]$OutFileName = "OutputFile.csv", #The name of the new excel file
+	[string]$FolderName = "$env:SystemDrive\Users\$env:UserName\My Documents",
+	[int]$ActiveSheet = 1,
+	[string]$RangeSeparator = '-',
+    [int]$last = 1
 )
 
 #Error-checking inputs to ensure proper execution
 	#Check existence of InFilePath
-		If !(Test-Path($InFilePath)){
+		If!(Test-Path($InFilePath)){
 				Write-Host "Input File Not Found.  Script is terminating."
 				Exit
 		}
 	#Get the file name from the infile position
-		$InFileName = Split-Path -Path $InFilePath -Leaf -Resolv
+		$InFileName = Split-Path -Path $InFilePath -Leaf -Resolve
 	#Check write-ability on FolderName
 		
 	#Open the excel file to check its contents
@@ -92,16 +93,18 @@ Param(
 		$excel.Visible = $True
 		$workbook = $excel.Workbooks.open($InFilePath)
 		#Get the active sheet.
-		$WorkSheet = $workbook.Sheets(ActiveSheet)
+		$WorkSheet = $workbook.Sheets($ActiveSheet)
 		
 	#Check that PartNumCol is within the used range of the excel file sheet
-		If !(PartNumCol -lt $WorkSheet.UsedRange.Columns.Count){
+		If(!(PartNumCol -lt $WorkSheet.UsedRange.Columns.Count)){
 			Write-Host "The input part number column number is outside the used range.  Script terminating."
 			Exit
+        }
 	#Check that PermuteCol is within the used range of the excel file sheet
-		If !(PermuteCol -lt $WorkSheet.UsedRange.Columns.Count){
+		If(!(PermuteCol -lt $WorkSheet.UsedRange.Columns.Count)){
 			Write-Host "The input permute column number is outside the used range.  Script terminating."
 			Exit
+        }
 #Create pre-defined arrays of sizes 
 	#Use numbers for prefixes if multiple 'extra's involved in name.  If the vendor 
 	#format does not match this later in the script, it will be converted. Lowercase versions 
@@ -128,18 +131,19 @@ Add-Content -Path $NewFilePath 'PartNum, DTIPartNum'
 #Perform operations on the open excel file to get the permuted part numbers.
 	
 	#Get name of the table in the worksheet to allow easy column referencing
-	$Table = $WorkSheet.ListObjects(ActiveSheet).Name
+	$Table = $WorkSheet.ListObjects($ActiveSheet).Name
 	
 	#Loop through the part numbers row by row of the input excel file
-	For ($RowIndex = $StartingRow; $RowIndex -lt WorkSheet.UsedRange.Rows.Count; $RowIndex++){	
+	For ($RowIndex = $StartingRow; $RowIndex -lt $WorkSheet.UsedRange.Rows.Count; $RowIndex++){	
 		#Store the part number to a variable 
 		$PartNum = $WorkSheet.UsedRange.Cells($RowIndex, $PartNumCol).Value
 		#Get the permutation range from the same row so parsing can begin.
 		$PermutationRange = $WorkSheet.UsedRange.Cells($RowIndex, $PermuteCol).Value
 		#Parse the range to get the starting and ending values, allowing comparison with sizeArray
 		$PermutationArray = $SizeString.Split($RangeSeparator)
-		$FirstSize = $PermutationArray[0]
-		$LastSize = $PermutationArray[-1]
+        
+		$FirstSize = SizeConverter($PermutationArray[0])
+		$LastSize = SizeConverter($PermutationArray[-1])
 		
 		#Check the range against the pre-defined arrays to get the starting and ending indices
 		# for the pre-defined arrays.
@@ -150,7 +154,7 @@ Add-Content -Path $NewFilePath 'PartNum, DTIPartNum'
 		#Loop from the first index to the ending index, creating the new DTI part number every time
 		For($SizeIndex = $FirstIndex; $SizeIndex -le $LastIndex; $SizeIndex++){
 			#Concatenate the vendor part num and the isolated size. 
-			$SubSize = $SizeArray[SizeIndex]
+			$SubSize = $SizeArray[$SizeIndex]
 			$DTIPartNUM = "$PartNum" + "$Separator" +  "$SubSize"
 			#After creating a new part number, add it to the output csv file
 			Add-Content -Path $NewFilePath - Value "$PartNum, $DTIPartNUM" 
