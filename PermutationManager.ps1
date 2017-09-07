@@ -38,6 +38,21 @@
 #		a dash.
 
 
+	
+#Set up the parameters for the script to allow proper parsing of inputs.
+Param(
+	[String]$InFilePath,  
+	[Int]$PartNumCol = 1, 
+	[string]$PermuteCol = 2,
+	[int]$StartingRow = 2,
+	[string]$Separator = '-',
+	[string]$OutFileName = "OutputFile.csv", #The name of the new excel file
+	[string]$FolderName = "$env:SystemDrive\Users\$env:UserName\My Documents",
+	[int]$ActiveSheet = 1,
+	[string]$RangeSeparator = '-',
+    [int]$last = 1
+)
+
 #Define a function for converting part numbers with irregular sizing schemes
 #	 to the Dooley Tackaberry convention
 Function SizeConverter($InputSize){
@@ -63,24 +78,10 @@ Function SizeConverter($InputSize){
 	$Converted
 	return
 }
-		
-#Set up the parameters for the script to allow proper parsing of inputs.
-Param(
-	[String]$InFilePath,  
-	[Int]$PartNumCol = 1, 
-	[string]$PermuteCol = 2,
-	[int]$StartingRow = 2,
-	[string]$Separator = '-',
-	[string]$OutFileName = "OutputFile.csv", #The name of the new excel file
-	[string]$FolderName = "$env:SystemDrive\Users\$env:UserName\My Documents",
-	[int]$ActiveSheet = 1,
-	[string]$RangeSeparator = '-',
-    [int]$last = 1
-)
 
 #Error-checking inputs to ensure proper execution
 	#Check existence of InFilePath
-		If!(Test-Path($InFilePath)){
+		If(!(Test-Path($InFilePath))){
 				Write-Host "Input File Not Found.  Script is terminating."
 				Exit
 		}
@@ -93,15 +94,20 @@ Param(
 		$excel.Visible = $True
 		$workbook = $excel.Workbooks.open($InFilePath)
 		#Get the active sheet.
-		$WorkSheet = $workbook.Sheets($ActiveSheet)
-		
+		$WorkSheet = $workbook.Sheets.Item($ActiveSheet)
+		$Range = $WorkSheet.UsedRange.Columns.Count
+        $RowRange = $WorkSheet.UsedRange.Rows.Count
+    Echo "PartNum Column: $PartNumCol"
+    Echo "Permute Column: $PermuteCol"
+    Echo "Range: $Range"
+
 	#Check that PartNumCol is within the used range of the excel file sheet
-		If(!(PartNumCol -lt $WorkSheet.UsedRange.Columns.Count)){
+		If(($PartNumCol -gt $Range)){
 			Write-Host "The input part number column number is outside the used range.  Script terminating."
 			Exit
         }
 	#Check that PermuteCol is within the used range of the excel file sheet
-		If(!(PermuteCol -lt $WorkSheet.UsedRange.Columns.Count)){
+		If(($PermuteCol -gt $Range)){
 			Write-Host "The input permute column number is outside the used range.  Script terminating."
 			Exit
         }
@@ -131,14 +137,17 @@ Add-Content -Path $NewFilePath 'PartNum, DTIPartNum'
 #Perform operations on the open excel file to get the permuted part numbers.
 	
 	#Get name of the table in the worksheet to allow easy column referencing
-	$Table = $WorkSheet.ListObjects($ActiveSheet).Name
-	
+	#$Table = $WorkSheet.ListObjects().Name
+    
+    
+    Echo "Rows:$RowRange"
+    Echo "Columns:$Range"
 	#Loop through the part numbers row by row of the input excel file
-	For ($RowIndex = $StartingRow; $RowIndex -lt $WorkSheet.UsedRange.Rows.Count; $RowIndex++){	
+	For ($RowIndex = $StartingRow; $RowIndex -lt $RowRange; $RowIndex++){	
 		#Store the part number to a variable 
-		$PartNum = $WorkSheet.UsedRange.Cells($RowIndex, $PartNumCol).Value
+		$PartNum = $WorkSheet.UsedRange.Cells.Item($RowIndex, $PartNumCol).Value()
 		#Get the permutation range from the same row so parsing can begin.
-		$PermutationRange = $WorkSheet.UsedRange.Cells($RowIndex, $PermuteCol).Value
+		$PermutationRange = $WorkSheet.UsedRange.Cells.Item($RowIndex, $PermuteCol).Value()
 		#Parse the range to get the starting and ending values, allowing comparison with sizeArray
 		$PermutationArray = $SizeString.Split($RangeSeparator)
         
