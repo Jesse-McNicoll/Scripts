@@ -42,8 +42,8 @@
 #Set up the parameters for the script to allow proper parsing of inputs.
 Param(
 	[String]$InFilePath,  
-	[Int]$PartNumCol = 1, 
-	[string]$PermuteCol = 2,
+	[int]$PartNumCol = 1, 
+	[int]$PermuteCol = 2,
 	[int]$StartingRow = 2,
 	[string]$Separator = '-',
 	[string]$OutFileName = "OutputFile.csv", #The name of the new excel file
@@ -56,9 +56,14 @@ Param(
 #Define a function for converting part numbers with irregular sizing schemes
 #	 to the Dooley Tackaberry convention
 Function SizeConverter($InputSize){
+
 	$InputSize = $InputSize.ToUpper()
 	#If it contains XX or more, count the x's so they can be replaced with a number.
+    if($InputSize.EndsWith("X")){
+        $InputSize = $InputSize + "L"
+    }
 	$Converted = $InputSize
+    
 	if($InputSize.Contains("XX")){
 		$StringCheck = $InputSize
 		if ($StringCheck.EndsWith("L")){
@@ -70,7 +75,7 @@ Function SizeConverter($InputSize){
 		if ($StringCheck.EndsWith("S")){
 			$TrimString = $StringCheck.Replace("S","")
 		}
-		$XCount = $TrimString.Length
+        $XCount = $TrimString.Length
 		$Array = $InputSize.ToCharArray()
 		$FinalLetter = $Array[-1]
 		$Converted =  "$XCount" + "X" + "$FinalLetter"
@@ -139,7 +144,6 @@ Add-Content -Path $NewFilePath 'PartNum, DTIPartNum'
 	#Get name of the table in the worksheet to allow easy column referencing
 	#$Table = $WorkSheet.ListObjects().Name
     
-    
     Echo "Rows:$RowRange"
     Echo "Columns:$Range"
 	#Loop through the part numbers row by row of the input excel file
@@ -147,26 +151,26 @@ Add-Content -Path $NewFilePath 'PartNum, DTIPartNum'
 		#Store the part number to a variable 
 		$PartNum = $WorkSheet.UsedRange.Cells.Item($RowIndex, $PartNumCol).Value()
 		#Get the permutation range from the same row so parsing can begin.
-		$PermutationRange = $WorkSheet.UsedRange.Cells.Item($RowIndex, $PermuteCol).Value()
+		$SizeString = $WorkSheet.UsedRange.Cells.Item($RowIndex, $PermuteCol).Value()
 		#Parse the range to get the starting and ending values, allowing comparison with sizeArray
 		$PermutationArray = $SizeString.Split($RangeSeparator)
-        
-		$FirstSize = SizeConverter($PermutationArray[0])
+        $FirstSize = SizeConverter($PermutationArray[0])
 		$LastSize = SizeConverter($PermutationArray[-1])
+        $FirstSize = $FirstSize.Replace(" ","")
+        $LastSize = $LastSize.Replace(" ","")
 		
 		#Check the range against the pre-defined arrays to get the starting and ending indices
 		# for the pre-defined arrays.
-		$FirstIndex = [array]::indexof($SizeArray,$FirstSize)
-		$LastIndex = [array]::indexof($SizeArray,$LastSize)
-			
-		
+        $FirstIndex = [array]::IndexOf($SizeArray,$FirstSize)
+        $LastIndex = [array]::IndexOf($SizeArray,$LastSize)
+       
 		#Loop from the first index to the ending index, creating the new DTI part number every time
 		For($SizeIndex = $FirstIndex; $SizeIndex -le $LastIndex; $SizeIndex++){
 			#Concatenate the vendor part num and the isolated size. 
 			$SubSize = $SizeArray[$SizeIndex]
 			$DTIPartNUM = "$PartNum" + "$Separator" +  "$SubSize"
 			#After creating a new part number, add it to the output csv file
-			Add-Content -Path $NewFilePath - Value "$PartNum, $DTIPartNUM" 
+			Add-Content -Path $NewFilePath -Value "$PartNum, $DTIPartNUM" 
 			#Move on to the next part until last index is reached.
 		}	
 		#Now that the output file has all permutated versions of the current part number, it 
@@ -175,4 +179,4 @@ Add-Content -Path $NewFilePath 'PartNum, DTIPartNum'
 	#Looping through the vendor part numbers is now complete.  The input and output file can be closed.
 
 #Save the csv file and end the script with a printed statement that declares completion.
-Write-Host "Script Completed.  Please view the output file in your documents folder or the input destination folder"  	
+Write-Host "Script Completed.  Please view the output file in your documents folder or the input destination folder"
