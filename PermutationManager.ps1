@@ -61,8 +61,9 @@ Param(
 #parameters for the script.
 $Company = 'DTI01'
 $FLAG = 'Erroneous instance of part suffix.  Verify this part number for viability'
-
-
+$ErrorBool = 'FALSE'
+$INITIAL_INDEX = 0
+$NEGATIVE_INDEX = -1
 
 
 #Define a function for converting part numbers with irregular sizing schemes
@@ -172,10 +173,11 @@ Function LoopThruPartnums($SizeArray, $SmallIndex, $BigIndex){
 	#will also be converted.
 	$TrunkSizeArray = '4XS','3XS','2XS','XS','S','M','L','XL','2XL','3XL','4XL','5XL','6XL','7XL','8XL'
     $NumSizeArray = '0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25'
-    $DualSizeArray = '4XS/3XS','2XS/XS','S/M','L/XL','2XL,3XL','4XL/5XL','6XL/7XL'
+    $DualSizeArray = '4XS/3XS','2XS/XS','S/M','L/XL','2XL/3XL','4XL/5XL','6XL/7XL'
+    $StretchDualArray = '5XS/3XS','2XS/S','M/XL','2XL/5XL','6XL/8XL'
     #Create an array of sizeArrays to allow function handling of arrays and more adaptable code.  When a new array of sizes needs to be added, it can simply be 
     # hard-coded in and then added to the array of size arrays
-    $MasterArray = $TrunkSizeArray, $NumSizeArray, $DualSizeArray
+    $MasterArray = $TrunkSizeArray, $NumSizeArray, $DualSizeArray, $StretchDualArray
     
 
 #Create the path to the output file to allow writing to it later on in script.
@@ -197,33 +199,18 @@ Add-Content -Path $NewFilePath 'Company, PartNum, BaseUnitPrice, PUM, EffectiveD
 	
 #Perform operations on the open excel file to get the permuted part numbers.
 	
-	#Get name of the table in the worksheet to allow easy column referencing
-	#$Table = $WorkSheet.ListObjects().Name
-    
-    
-	#Loop through the part numbers row by row of the input excel file
-	For ($RowIndex = $StartingRow; $RowIndex -lt $RowRange; $RowIndex++){	
+	#Loop through the part numbers row by row of the input excel file, allowing each part number to be checked.  
+	For ($RowIndex = $StartingRow; $RowIndex -le $RowRange; $RowIndex++){	
 		#Store the part number to a variable 
 		$PartNum = $WorkSheet.UsedRange.Cells.Item($RowIndex, $PartNumCol).Value()
 		#Get the permutation range from the same row so parsing can begin.
 		$SizeString = $WorkSheet.UsedRange.Cells.Item($RowIndex, $PermuteCol).Value()
         
-
-
-        If($SizeString -eq '4 - 14'){
-            Echo "this is for debugging"
-        }
-
-
-
-
-
-
         #Get the prices so it can be posted to csv file in same line as new part number
         $Price = $WorkSheet.UsedRange.Cells.Item($RowIndex, $PriceCol).Value()
         #Perform a variety of checks on the SizeString to see how the data should be handled.  This allows a decision to be made on the need for a suffix
         # to the part number.
-        If($SizeString -eq ""){
+        If($null -eq $SizeString){
             $DTIPartNum = $PartNum
             Add-Content -Path $NewFilePath -Value "$PartNum, $DTIPartNum, $Price"
         }
@@ -254,32 +241,41 @@ Add-Content -Path $NewFilePath 'Company, PartNum, BaseUnitPrice, PUM, EffectiveD
             $PermutationArray = $SizeString.Split($RangeSeparator)
             #A 2-member array of sizes has been created.  These two sizes can be sent to the sizeconverter() method, allowing for
             # the type of sizing to be recognized and the size to be converted to DTI naming conventions.
-            $FirstSize = RangeConverter($PermutationArray[0])
-		    $LastSize = RangeConverter($PermutationArray[-1])
+            $FirstSize = RangeConverter($PermutationArray[$INITIAL_INDEX])
+		    $LastSize = RangeConverter($PermutationArray[$NEGATIVE_INDEX])
             
-            #Loop through the master array until matches are made with $FirstSize and $LastSize
-            #This assumes that the sizes match one of the pre-defined arrays!!!!
-            #Magic numbers here!!
-            $FirstIndex = -1
-            $LastIndex = -1
-            $MasterArrayIndex = -1
+            #Loop through the master array until matches are made with $FirstSize and $LastSize to mark
+            # a starting position in the sizing arrays to start concatenating with the part number to create
+            # DTI part numbers 
+            
+            #Start MasterArrayIndex at -1 to allow a post-loop check on $FirstIndex and $LastIndex
+            $MasterArrayIndex = $NEGATIVE_INDEX
             Do{
-                $MasterArrayIndex = $MasterArrayIndex + 1 
-                $FirstIndex = [array]::IndexOf($MasterArray[$MasterArrayIndex],$FirstSize)
-                $LastIndex = [array]::IndexOf($MasterArray[$MasterArrayIndex],$LastSize)
-
-                If($SizeString -eq '4 - 14'){
-                   Echo "this is for debugging"
-                   $ShortArray = $MasterArray[$MasterArrayIndex]
-                   Echo "$ShortArray"
+                $MasterArrayIndex = $MasterArrayIndex + 1
+                if($MasterArrayIndex -lt $MasterArray.Length){
+                    $FirstIndex = [array]::IndexOf($MasterArray[$MasterArrayIndex],$FirstSize)
+                    $LastIndex = [array]::IndexOf($MasterArray[$MasterArrayIndex],$LastSize)
                 }
             }
-            While($FirstIndex -eq -1 -and $LastIndex -eq -1 -and $MasterArrayIndex -lt $MasterArray.Length)
+            While($FirstIndex -eq $NEGATIVE_INDEX -and $LastIndex -eq $NEGATIVE_INDEX -and $MasterArrayIndex -lt $MasterArray.Length)
+
+            #Check to make sure the appropriate sizing array was found.  If not, output a sizing error on that line to notify a user. 
+            #Set a boolean to determine if the user should be notified to look for errors in the output file.  
+            if($MasterArrayIndex -ge $MasterArray.Length){
+                
+                $DTIPartNum = 'Invalid'
+                $Price = 'Invalid'
+                $ErrorMessage = 'The appropriate sizing array was not found for this part.'
+                $ErrorBool = 'TRUE'
+                Add-Content -Path $NewFilePath -Value "$PartNum, $DTIPartNum, $Price, $ErrorMessage"
+
+            }
+            Else{
             #Loop from the first index to the ending index, creating the new DTI part number every time.
             #Do this by calling the LoopThruPartnums() method with the appropriate array indexed in
             #the Master Array
-            LoopThruPartnums $MasterArray[$MasterArrayIndex] $FirstIndex $LastIndex
-        
+                LoopThruPartnums $MasterArray[$MasterArrayIndex] $FirstIndex $LastIndex
+            }
         }
 		
 		#Now that the output file has all permutated versions of the current part number, it 
@@ -289,3 +285,6 @@ Add-Content -Path $NewFilePath 'Company, PartNum, BaseUnitPrice, PUM, EffectiveD
 
 #Save the csv file and end the script with a printed statement that declares completion.
 Write-Host "Script Completed.  Please view the output file in your documents folder or the input destination folder"
+If($ErrorBool -eq "TRUE"){
+    Write-Host "Some parts did not have appropriate sizing arrays.  Please look through the output file to fix.  You can search for 'not found' to locate these lines"   
+}
