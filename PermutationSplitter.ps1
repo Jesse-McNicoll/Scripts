@@ -296,11 +296,16 @@ Add-Content -Path $NewFilePath 'New DTI Part Numbers'
                 # might be required.
                 $SizeRangeArray = $SplitPartArray[$SecondMember].Split($RangeSeparator)
                 $BasePartNum = $SplitPartArray[$FirstMember]
-                $BoolCheck = IsValidSize $SizeRangeArray[$SecondMember]
-                If(IsValidSize($SizeRangeArray[$FirstMember]) -and $BoolCheck){
-                    If(IsValidSize($SizeRangeArray[$SecondMember])){
-                        Echo "Weird things are afoot at the circle k"
-                    }
+                
+                $BoolCheck1 = IsValidSize $SizeRangeArray[$FirstMember]
+                $BoolCheck2 = IsValidSize $SizeRangeArray[$SecondMember]
+                #
+                #Note: This check does not take into account the need for number size checking.
+                #
+                # This is an important aspect of sizing ranges.  
+                # 
+                If($BoolCheck1 -and $BoolCheck2){
+                   
                     #Now that it is verified as a valid range, the LoopThruPartNums functions must be called after the indices and proper array has been 
                     #discovered. 
                     $FirstSize = $SizeRangeArray[$FirstMember]
