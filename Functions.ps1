@@ -1,3 +1,33 @@
+#Create pre-defined arrays of sizes 
+	#Use numbers for prefixes if multiple 'extra's involved in name.  If the vendor 
+	#format does not match this later in the script, it will be converted. Lowercase versions 
+	#will also be converted.
+	$TrunkSizeArray = '4XS','3XS','2XS','XS','S','M','L','XL','2XL','3XL','4XL','5XL','6XL','7XL','8XL'
+    $NumSizeArray = '0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25'
+    $DualSizeArray = '4XS/3XS','2XS/XS','S/M','L/XL','2XL/3XL','4XL/5XL','6XL/7XL'
+    $StretchDualArray = '5XS/3XS','2XS/S','M/XL','2XL/5XL','6XL/8XL'
+    #Create an array of sizeArrays to allow function handling of arrays and more adaptable code.  When a new array of sizes needs to be added, it can simply be 
+    # hard-coded in and then added to the array of size arrays
+    $MasterArray = $TrunkSizeArray, $NumSizeArray, $DualSizeArray, $StretchDualArray
+
+#Static Variables
+#These variables should rarely need to be changed, and when necessary the code should be altered rather than makes these values
+#parameters for a script.
+$Company = 'DTI01'
+$FLAG = 'Erroneous instance of part suffix.  Verify this part number for viability'
+$ErrorBool = 'FALSE'
+$INITIAL_INDEX = 0
+$NEGATIVE_INDEX = -1
+$TWO_MEMBERS = 2
+$ONE_MEMBER = 1
+$FirstMember = 0
+$SecondMember = 1
+$LastMember = -1
+$ThirdMember = 2
+$DTISeparator = '-'
+$VenRangeSeparator = '-'
+
+
 #SizeConverter()
 #
 #   Takes an input size string and processes it, changing it into a formatted size
@@ -103,8 +133,15 @@ Function IsValidSize($SizeString){
     return
 }
     
-
-Function LoopThruPartnums($SizeArray, $SmallIndex, $BigIndex, $BasePartNum, $PartCost, $PartNum, $PUM){
+#LoopThruPartNums()
+#
+#  This function takes an input size array and concatenates the sizes in the array to base 
+#  base part num based on the input beginning and ending indices.  It then adds these sizes to 
+#  an input file.
+#
+#  
+#
+Function LoopThruPartnums($SizeArray, $SmallIndex, $BigIndex, $BasePartNum, $PartCost, $PartNum, $PUM, $NewFilePath){
     #Loop from the small index to the big index, creating the new DTI part number every time
 	For($SizeIndex = $SmallIndex; $SizeIndex -le $BigIndex; $SizeIndex++){
 		#Concatenate the vendor part num and the isolated size. 
@@ -114,4 +151,59 @@ Function LoopThruPartnums($SizeArray, $SmallIndex, $BigIndex, $BasePartNum, $Par
 		Add-Content -Path $NewFilePath -Value "$PartNum, $DTIPartNUM, $PartCost, $PUM" 
 		#Move on to the next part until last index is reached.
 	}
+}
+
+#ValidatePath()
+#
+# This function tests the validity of a file output path.  If it already exists, it offers the ability to delete the file and write over it,
+# or create a new file with a different name. 
+#
+# Input: FilePath, a string variable holding the full path to a file.  
+#        FolderName, a string variable holding a path to the PriceFile folder.  
+# Output: FilePath, the final path to the file.
+#
+Function ValidatePath($FilePath, $FolderName){
+    While(Test-Path "$FilePath"){
+        $ScreenInput = Read-Host "A file already exists with the name $FilePath.  If you want to delete the file, type D.  If you want to create a new filename, type it now."
+        $StringCheck = $ScreenInput.ToUpper()
+        If($StringCheck -eq "D"){
+            Remove-Item $FilePath
+        }
+        else{
+            $FilePath = "$FolderName\$ScreenInput"
+        }
+    }
+    $FilePath
+    return
+}
+
+#ContainsSizeOrColor()
+#
+# This function checks a string for a size, looking for patterns that resemble sizes or colors.
+# If it finds a match, it returns true.  Else, false
+#
+# Input: PartNum, A part number as a string.
+#
+# Output: A boolean indicating whether the input part number contains a size or not.
+#
+Function ContainsSizeOrColor($PartNum){
+    #Set default return value to false
+    $Contains = $false
+    #Set up the garment size regex string
+    #$SizeRegex = "^.+[^a-z]+X*[lsm]{1}"
+    $SizeRegex = "x*[lsm]{1}"
+    #Check if the part number contains a garment size
+        if($PartNum -imatch $SizeRegex){
+            $Contains = $true
+        }
+    $Contains
+    return
+}
+     
+#TestFunction
+#
+# This function is only used to test if DOT including is working properly.
+#
+Function TestFunction(){
+    Echo "Hey there, the function include works!"
 }
