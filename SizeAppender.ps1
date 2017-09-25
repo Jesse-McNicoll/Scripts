@@ -100,7 +100,9 @@ $PriceFilePath = ValidatePath $PriceFilePath
 $MapFilePath = ValidatePath $MapFilePath
 
 #Create the headers for each output file, allowing data to be added 
-Add-Content -Path $PriceFilePath 'New DTI Part Numbers'
+Add-Content -Path $PriceFilePath 'Company, PartNum, BaseUnitPrice, PUM, EffectiveDate, VenPartNum, ConvFactor, ExpirationDate, DiscountPercent, VendorID'
+Add-Content -Path $MapFilePath 'Company, VendorID, PartNum, VendPartNum'
+
 #Loop through the part numbers row by row of the input excel file, allowing each part number to be checked. 
 	For ($RowIndex = $StartingRow; $RowIndex -le $RowRange; $RowIndex++){
         
@@ -111,113 +113,20 @@ Add-Content -Path $PriceFilePath 'New DTI Part Numbers'
         $PUM = $WorkSheet.UsedRange.Cells.Item($RowIndex, $PUMCol).Value()
         $PUM = $PUM.ToUpper()
 
-        #Trim the whitespace!
+        #Trim the whitespace to prevent it from being pesky
         $PartNum = $PartNum.Trim()
 
-        #Split the part number on the vendor appender.  This will allow the size to be accessed and stored.
-        $SplitPartArray = $PartNum.Split($VendorAppender)
-
-        #Determine if there were multiple vendor appending characters in the part number, or none.  If there are more than one, additional processing
-        #will be required.  If there were none, then the vendor part number can equal the DTI part number.
-        If($SplitPartArray.Length -gt $TWO_MEMBERS){
-            #
-            #
-            #NOTE: This is an immediate patch for Protecti
-            #            
-            $DTISize = SizeConverter $SplitPartArray[$SecondMember]
-            $DTIPartNum = $SplitPartArray[$FirstMember] + $DTISeparator + $SplitPartArray[$ThirdMember] + $DTISeparator + $DTISize
-            Add-Content -Path $PriceFilePath -Value "$PartNum, $DTIPartNUM, $PartCost, $PUM"                                 
+        #Use the regex checking function to check for sizes or colors.  
+        if(ContainsSizeOrColor $PartNum){
+            Echo "Hey there is a size in $PartNum"
         }
-        elseif($SplitPartArray.Length -eq $ONE_MEMBER){
-            #If no appended size, the vendor part num can equal the DTI part num.  
-            $DTIPartNum = $PartNum
-            Add-Content -Path $PriceFilePath -Value "$PartNum, $DTIPartNUM, $PartCost, $PUM"    
-        }
-        elseif($SplitPartArray.Length -eq $TWO_MEMBERS){
-            #Split the base part number on a range separator and check the last member, if it is a valid size, then the part number is a dual
-            # size and should be appended as such. 
-            $BasePartArray = $SplitPartArray[$FirstMember].Split($VenRangeSeparator)
-            If(IsValidSize $BasePartArray[$LastMember]){
-                $SecondSize = SizeConverter $SplitPartArray[$SecondMember]
-                $FirstSize = SizeConverter $BasePartArray[$LastMember]
-                $DualSizeAppend = $FirstSize + "/" + $SecondSize
-                $DTIPartNum = $PartNum.Replace($BasePartArray[$LastMember] + $VendorAppender + $SplitPartArray[$SecondMember], "") + $DualSizeAppend
-
-                Add-Content -Path $PriceFilePath -Value "$PartNum, $DTIPartNUM, $PartCost, $PUM"
-                #NOTE:
-                #      This does not account for dual sizes that could then be followed by a dual size range.
-                #
-                #      This should be addressed.
-                #
-            }
-            #Check if the array has a range separator in the second member.  If it does, it will need to be verified as a range of sizes.  
-            ElseIf($SplitPartArray[$SecondMember].Contains($VenRangeSeparator)){
-                #At this point, the range may be valid, as in spanning between two sizes. Check if it is to see what further processing
-                # might be required.
-                $SizeRangeArray = $SplitPartArray[$SecondMember].Split($VenRangeSeparator)
-                $BasePartNum = $SplitPartArray[$FirstMember]
+            
+            #If there is a size, use a custom string function to splice
+            #the size or color, convert it to a DTI standard, and insert it on the end of the part number.
                 
-                $BoolCheck1 = IsValidSize $SizeRangeArray[$FirstMember]
-                $BoolCheck2 = IsValidSize $SizeRangeArray[$SecondMember]
-                #
-                #Note: This check does not take into account the need for number size checking.
-                #
-                # This is an important aspect of sizing ranges.  
-                # 
-                If($BoolCheck1 -and $BoolCheck2){
-                   
-                    #Now that it is verified as a valid range, the LoopThruPartNums functions must be called after the indices and proper array has been 
-                    #discovered. 
-                    $FirstSize = $SizeRangeArray[$FirstMember]
-                    $FirstSize = SizeConverter $FirstSize
-                    $LastSize = $SizeRangeArray[$LastMember]
-                    $LastSize = SizeConverter $LastSize
-                    $MasterArrayIndex = $NEGATIVE_INDEX
-                    Do{
-                        $MasterArrayIndex = $MasterArrayIndex + 1
-                        if($MasterArrayIndex -lt $MasterArray.Length){
-                            $FirstIndex = [array]::IndexOf($MasterArray[$MasterArrayIndex],$FirstSize)
-                            $LastIndex = [array]::IndexOf($MasterArray[$MasterArrayIndex],$LastSize)
-                        }
-                    }
-                    While($FirstIndex -eq $NEGATIVE_INDEX -and $LastIndex -eq $NEGATIVE_INDEX -and $MasterArrayIndex -lt $MasterArray.Length)
-                    
-                    if($MasterArrayIndex -ge $MasterArray.Length){
-                
-                        $DTIPartNum = 'Invalid'
-                        $PartCost = 'Invalid'
-                        $ErrorMessage = 'The appropriate sizing array was not found for this part.'
-                        $ErrorBool = 'TRUE'
-                        Add-Content -Path $PriceFilePath -Value "$PartNum, $DTIPartNum, $PartCost, $ErrorMessage, $PUM"
-                    }
-                    Else{
-                    #Loop from the first index to the ending index, creating the new DTI part number every time.
-                    #Do this by calling the LoopThruPartnums() method with the appropriate array indexed in
-                    #the Master Array
-                        LoopThruPartnums $MasterArray[$MasterArrayIndex] $FirstIndex $LastIndex $BasePartNum $PartCost $PartNum $PUM
-                    }
-                }
-                Else{
-                    #The last member of the part number is not a size.  Rearrange the part number to achieve the DTI part number
-                    #
-                    #NOTE: Specifically geared towards handling protecti.
-                    #
-                    $SizeAppend = $SizeRangeArray[$FirstMember]
-                    $InsertionString = $SizeRangeArray[$SecondMember]
-                    $DTIPartNum = $BasePartNum + $DTISeparator + $InsertionString + $DTISeparator + $SizeAppend 
-                    Add-Content -Path $PriceFilePath -Value "$PartNum, $DTIPartNum, $PartCost, $PUM"                  
-                }
-            }
-            Else{
-                $DTISize = SizeConverter $SplitPartArray[$SecondMember]
-                $DTIPartNum = $SplitPartArray[$FirstMember] + $DTISeparator + $DTISize
-                Add-Content -Path $PriceFilePath -Value "$PartNum, $DTIPartNUM, $PartCost, $PUM"
-            }
-        }        
-        else{
-            #The array is empty and an error has occurred.
-            Write-Host "An error has occurred in processing row $RowIndex of the input file.  There is no part number."
-        }
+            
+            
+       
         
     }
 Write-Host "Script Complete.  Please check the file for inconsistencies."
