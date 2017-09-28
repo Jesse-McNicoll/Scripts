@@ -39,7 +39,11 @@ $VenRangeSeparator = '-'
 #
 #   Output: $OutputSize, a size string that meets DTI standards.
 Function SizeConverter($InputSize){
-    
+    #Use regular expressions to check for spelled out sizes
+    #and convert them to one-letter equivalents
+    $InputSize = $InputSize -replace "me?d", "M"
+    $InputSize = $InputSize -replace "lr?g", "L"
+    $InputSize = $InputSize -replace "sml?", "S"
     If($InputSize.EndsWith("X")){
             $InputSize = $InputSize + "L"
     }
@@ -186,18 +190,34 @@ Function ValidatePath($FilePath, $FolderName){
 #
 # Output: A boolean indicating whether the input part number contains a size or not.
 #
-Function ContainsSizeOrColor($PartNum){
-    #Set default return value to false
-    $Contains = $false
+Function FindSizeAndSplit($PartNumber){
+    
     #Set up the garment size regex string
     #$SizeRegex = "^.+[^a-z]+X*[lsm]{1}"
-    $SizeRegex = "x*[lsm]{1}"
+    #$SizeRegex = "[^a-z]+x*[lsm]{1}"
+    $SizeRegex = "((((?!\d?x*[lsm])\w*)(\W?)){1,})(\d?)(x*)(me?d|lr?g|sml?|l|s|m)(.*)"
     #Check if the part number contains a garment size
-        if($PartNum -imatch $SizeRegex){
-            $Contains = $true
+        if($PartNumber -imatch $SizeRegex){
+            #Create the dooley size
+            $PartSize = $Matches[5] + $Matches[6] + $Matches[7]
+            $PartSize = SizeConverter $PartSize
+            if($Matches[8] -eq ""){
+                $DTIPartNum = $Matches[3] + $DTISeparator + $PartSize
+            }
+            else{
+                $DTIPartNum = $Matches[3] + $DTISeparator + $Matches[8] + $DTISeparator + $PartSize
+            }
         }
-    $Contains
-    return
+        else{
+            #If it does not match the size expression, it may be a number size at the end.  
+            #First, convert all non-word expressions to a DTI separator
+            $PartNumber = $PartNumber -replace '\W', "$DTISeparator"
+            if($PartNumber -match "(.*[^0-9]{1,})([0-9]{1,2})$"){
+                $PartNumber = $Matches[1] + $DTISeparator + $Matches[2]
+            }
+            $DTIPartNum = $PartNumber
+        }
+    $DTIPartNum
 }
      
 #TestFunction
@@ -207,3 +227,25 @@ Function ContainsSizeOrColor($PartNum){
 Function TestFunction(){
     Echo "Hey there, the function include works!"
 }
+
+#
+# Iterations of $SizeRegex
+#
+#
+#
+#$SizeRegex = "(.*)(\d*)(\W?)(\d?)(x*)([s|l|m|med|lrg|sml]{1})(.*)" 
+#
+# This one captures all the random characters in the beginning and does not
+# account for the non-word character aspect. 
+# 
+# "(\w*)(\W?)(\d?)(x*)([s|l|m|med|lrg|sml]{1})(.*)"
+#
+# Does not account for possibility of multiple non-word characters before size.
+#
+# "([(\w*)(\W?)]{1,})(\d?)(x*)([s|l|m|med|lrg|sml]{1})(.*)"
+#
+# This expression eats up the x in a size with the first few sizes
+#
+# ((((?!\d?x*[lsm])\w*)(\W?)){1,})(\d?)(x*)(me?d|lr?g|sml?|l|s|m)(.*)
+#
+# So far, so good!
