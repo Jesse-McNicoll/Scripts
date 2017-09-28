@@ -192,31 +192,47 @@ Function ValidatePath($FilePath, $FolderName){
 #
 Function FindSizeAndSplit($PartNumber){
     
-    #Set up the garment size regex string
-    #$SizeRegex = "^.+[^a-z]+X*[lsm]{1}"
-    #$SizeRegex = "[^a-z]+x*[lsm]{1}"
-    $SizeRegex = "((((?!\d?x*[lsm])\w*)(\W?)){1,})(\d?)(x*)(me?d|lr?g|sml?|l|s|m)(.*)"
-    #Check if the part number contains a garment size
-        if($PartNumber -imatch $SizeRegex){
-            #Create the dooley size
-            $PartSize = $Matches[5] + $Matches[6] + $Matches[7]
-            $PartSize = SizeConverter $PartSize
-            if($Matches[8] -eq ""){
-                $DTIPartNum = $Matches[3] + $DTISeparator + $PartSize
-            }
-            else{
-                $DTIPartNum = $Matches[3] + $DTISeparator + $Matches[8] + $DTISeparator + $PartSize
-            }
-        }
-        else{
-            #If it does not match the size expression, it may be a number size at the end.  
-            #First, convert all non-word expressions to a DTI separator
-            $PartNumber = $PartNumber -replace '\W', "$DTISeparator"
-            if($PartNumber -match "(.*[^0-9]{1,})([0-9]{1,2})$"){
-                $PartNumber = $Matches[1] + $DTISeparator + $Matches[2]
-            }
-            $DTIPartNum = $PartNumber
-        }
+    #Set up the garment size regex strings
+    
+    #Two problems right now:
+    #
+    # Need to make sure a large number does not get appended (5009XL -> 500-9XL)
+    #
+    # 35596W/3XL -> 35596W/-3XL
+    #
+    # XA-103M-GRY-SML ->  XA-103M-GRY-SM-L
+    #
+    # XA-103M-GRY-XLG ->  XA-103M-GRY--XL
+    # 
+    # WMT-998K-BRN-060 ->  WT-998K-BRN-060-M
+    #
+    # COHB35XXXXL ->  COHB35XXX-XL
+    #
+
+    #Currently, 
+    $FullSizeRegex = "(.*[\D\w])(\W)?(\d{1}x+(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
+    
+    
+    $NoNumberRegex = "(.*)(\W?)(x+(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
+    
+    
+    $NoXorNumRegex = "(.*)(\W?)((?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)" 
+
+    if($PartNumber -match $FullSizeRegex){
+        $PartSize = SizeConverter $Matches[3]
+        $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
+    }
+    elseif($PartNumber -match $NoNumberRegex){
+        $PartSize = SizeConverter $Matches[3]
+        $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
+    }
+    elseif($PartNumber -match $NoXorNumRegex){
+        $PartSize = SizeConverter $Matches[3]
+        $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
+    }
+    else{
+        $DTIPartNum = $PartNumber
+    }
     $DTIPartNum
 }
      
