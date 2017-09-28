@@ -117,13 +117,11 @@ Add-Content -Path $MapFilePath 'Company, VendorID, PartNum, VendPartNum'
         $PartNum = $PartNum.Trim()
 
         #Use the regex checking function to check for sizes or colors.  
-        if(ContainsSizeOrColor $PartNum){
-            Echo "Hey there is a size in $PartNum"
-        }
-            
+        $NewPartNum = FindSizeAndSplit $PartNum
             #If there is a size, use a custom string function to splice
             #the size or color, convert it to a DTI standard, and insert it on the end of the part number.
-                
+        Add-Content -Path $PriceFilePath "$Company, $NewPartNum, $PartCost, $PUM, , $PartNum, , , , $VendorID "
+                 
             
             
        
