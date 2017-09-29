@@ -213,19 +213,19 @@ Function FindSizeAndSplit($PartNumber){
 
     #Currently, 
 
-    $FullSizeRegexWithSeparator = "(.*[\D\w])(\W){1}(\d?x?(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
+    $FullSizeRegexWithSeparator = "(.*[\D\w])(\W){1}(\d?x?(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)"
 
     #$NoNumberRegexWithSeparator = "(.*)(\W{1})(x+(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
 
     #$NoXorNumRegexWithSeparator = "(.*)(\W{1})((?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
 
-    $FullSizeRegex = "(.*[\D\w])(\W)?(\d{1}x+(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
+    $FullSizeRegex = "(.*[\D\w])(\W)?(\d{1}x+(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)$"
     
     
-    $NoNumberRegex = "(.*)(\W?)(x+(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
+    $NoNumberRegex = "(.*)(\W?)(x+(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)$"
     
     
-    $NoXorNumRegex = "(.*)(\W?)((?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
+    $NoXorNumRegex = "(.*)(\W?)((?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)$"
     
     if($PartNumber -match $FullSizeRegexWithSeparator){
         $PartSize = SizeConverter $Matches[3]
