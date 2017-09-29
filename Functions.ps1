@@ -246,11 +246,10 @@ Function FindSizeAndSplit($PartNumber){
 
     #$NoXorNumRegexWithSeparator = "(.*)(\W{1})((?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
 
-    $FullSizeRegex = "(.*[\D\w])(\d{1}x+(?:me?d|lr?g|sml?|l|s|m))$"
-    
+    #This regex incorporates a look-behind to make sure only one digit precedes an XL size.
+    $FullSizeRegexOneDigit = "(.*)(\D{1})(\d{1}x{1}(?:me?d|lr?g|sml?|l|s|m){1})$"
     
     $NoNumberRegex = "(.*)(x+(?:me?d|lr?g|sml?|l|s|m))$"
-    
     
     $NoXorNumRegex = "(.*)((?:me?d|lr?g|sml?|l|s|m))$"
 
@@ -278,9 +277,9 @@ Function FindSizeAndSplit($PartNumber){
     #    $PartSize = SizeConverter $Matches[3]
     #    $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
     #}
-    elseif($PartNumber -match $FullSizeRegex){
+    elseif($PartNumber -match $FullSizeRegexOneDigit){
         $PartSize = SizeConverter $Matches[3]
-        $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
+        $DTIPartNum = $Matches[1] + $Matches[2] + $DTISeparator + $PartSize
     }
     elseif($PartNumber -match $NoNumberRegex){
         $PartSize = SizeConverter $Matches[3]
