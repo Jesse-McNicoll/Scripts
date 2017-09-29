@@ -67,8 +67,30 @@ Function SizeConverter($InputSize){
     }
     $Converted
     return
-}    
+}
 
+#ExtendedSizeConverter()
+#
+# This function extends the functionality of the original size converter function to handle dual sizes.
+#
+# This function takes all sizes, including those that are not dual sizes.  It processes them and converts
+# their format to DTI standards.  
+#
+Function ExtendedSizeConverter($RawSize){
+    If($RawSize.Contains("/")){
+        $DualSizeArray = $RawSize.Split("/")
+        $FirstSize = $DualSizeArray[$FirstMember]
+        $SecondSize = $DualSizeArray[$SecondMember]
+        $FirstSize = SizeConverter $FirstSize 
+        $SecondSize = SizeConverter $SecondSize
+        $DTISize = $FirstSize + "/" + $SecondSize
+    }
+    else{
+        $DTISize = SizeConverter $RawSize
+    }
+    $DTISize
+    return
+}
 #RangeConverter()
 #
 #   This function takes an input start or end of a range and checks it for the type of range it is.
@@ -212,22 +234,39 @@ Function FindSizeAndSplit($PartNumber){
     #$PartNumber = $PartNumber -replace '\W', '-'
 
     #Currently, 
+    $DualSizeRegexWithSeparator = "(.*[\D\w])(\W){1}(\d?x?(?:me?d|lr?g|sml?|l|s|m)/{1}\d?x?(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)$"
 
-    $FullSizeRegexWithSeparator = "(.*[\D\w])(\W){1}(\d?x?(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)"
+    $DualSizeRegex = "(.*[\D\w])(\d?x?(?:me?d|lr?g|sml?|l|s|m)/{1}\d?x?(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(3).*|)$"
+
+    $FullSizeRegexWithSeparator = "(.*[\D\w])(\W){1}(\d?x?(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)$"
+
+    
 
     #$NoNumberRegexWithSeparator = "(.*)(\W{1})(x+(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
 
     #$NoXorNumRegexWithSeparator = "(.*)(\W{1})((?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
 
-    $FullSizeRegex = "(.*[\D\w])(\W)?(\d{1}x+(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)$"
+    $FullSizeRegex = "(.*[\D\w])(\d{1}x+(?:me?d|lr?g|sml?|l|s|m))$"
     
     
-    $NoNumberRegex = "(.*)(\W?)(x+(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)$"
+    $NoNumberRegex = "(.*)(x+(?:me?d|lr?g|sml?|l|s|m))$"
     
     
-    $NoXorNumRegex = "(.*)(\W?)((?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)$"
+    $NoXorNumRegex = "(.*)((?:me?d|lr?g|sml?|l|s|m))$"
+
+    $NoLRegexDualSizeWithSeparator = "(.*)(\W){1}((\d)?(?(3)(x){1}|x{1,}/{1}(\d)?(?(3)(x){1}|x{1,})))$"
+
+    $NoLRegexWithSeparator = "(.*)(\W){1}((\d)?(?(3)(x){1}|x{1,}))$"
     
-    if($PartNumber -match $FullSizeRegexWithSeparator){
+    if($PartNumber -match $DualSizeRegexWithSeparator){
+        $PartSize = ExtendedSizeConverter $Matches[3]
+        $DTIPartNum = $Matches[1]  + $DTISeparator + $PartSize
+    }
+    elseif($PartNumber -match $DualSizeRegex){
+        $PartSize = ExtendedSizeConverter $Matches[2]
+        $DTIPartNum = $Matches[1]  + $DTISeparator + $PartSize
+    }
+    elseif($PartNumber -match $FullSizeRegexWithSeparator){
         $PartSize = SizeConverter $Matches[3]
         $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
     }
@@ -250,6 +289,10 @@ Function FindSizeAndSplit($PartNumber){
     elseif($PartNumber -match $NoXorNumRegex){
         $PartSize = SizeConverter $Matches[3]
         $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
+    }
+    elseif($PartNumber -match $NoLRegexDualSizeWithSeparator -or $PartNumber -match $NoLRegexWithSeparator){
+        $PartSize =  SizeConverter $Matches[3]
+        $DTIPartNum = $Matches[1] + $DTISeparator + $PartSize
     }
     else{
         $DTIPartNum = $PartNumber
