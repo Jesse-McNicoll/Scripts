@@ -209,16 +209,37 @@ Function FindSizeAndSplit($PartNumber){
     # COHB35XXXXL ->  COHB35XXX-XL
     #
 
+    #$PartNumber = $PartNumber -replace '\W', '-'
+
     #Currently, 
+
+    $FullSizeRegexWithSeparator = "(.*[\D\w])(\W){1}(\d?x?(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
+
+    #$NoNumberRegexWithSeparator = "(.*)(\W{1})(x+(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
+
+    #$NoXorNumRegexWithSeparator = "(.*)(\W{1})((?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
+
     $FullSizeRegex = "(.*[\D\w])(\W)?(\d{1}x+(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
     
     
     $NoNumberRegex = "(.*)(\W?)(x+(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
     
     
-    $NoXorNumRegex = "(.*)(\W?)((?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)" 
-
-    if($PartNumber -match $FullSizeRegex){
+    $NoXorNumRegex = "(.*)(\W?)((?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
+    
+    if($PartNumber -match $FullSizeRegexWithSeparator){
+        $PartSize = SizeConverter $Matches[3]
+        $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
+    }
+    #elseif($PartNumber -match $NoNumberRegexWithSeparator){
+    #    $PartSize = SizeConverter $Matches[3]
+    #    $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
+    #}
+    #elseif($PartNumber -match $NoXorNumRegexWithSeparator){
+    #    $PartSize = SizeConverter $Matches[3]
+    #    $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
+    #}
+    elseif($PartNumber -match $FullSizeRegex){
         $PartSize = SizeConverter $Matches[3]
         $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
     }
