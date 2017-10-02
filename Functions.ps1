@@ -247,10 +247,16 @@ Function FindSizeAndSplit($PartNumber){
     #$NoXorNumRegexWithSeparator = "(.*)(\W{1})((?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
 
     #This regex incorporates a look-behind to make sure only one digit precedes an XL size.
-    $FullSizeRegexOneDigit = "(.*)(\D{1})(\d{1}x{1}(?:me?d|lr?g|sml?|l|s|m){1})$"
+    $FullSizeRegexOneDigit = "(.*)(\D{1})(\d{1}x+(?:me?d|lr?g|sml?|l|s|m){1})$"
     
-    $NoNumberRegex = "(.*)(x+(?:me?d|lr?g|sml?|l|s|m))$"
+    #This regex currently catches parts with multi-digit numbers preceding an X and also any non-dual
+    #size part without a non-word-character separator and without a number. This matches multiple x's where x's are not present in the rest of the part number.
+    $NoNumberRegexMultiX = "([^x]*)(x+(?:me?d|lr?g|sml?|l|s|m))$"
+
+    #This regex matches parts that might have x's preceding the letter size and also x's in the rest of the part number.
+    $NoNumberRegex = "(.*)(x{1}(?:me?d|lr?g|sml?|l|s|m))$"
     
+    #This regex matches parts that do not have x modifier's before the letter size.
     $NoXorNumRegex = "(.*)((?:me?d|lr?g|sml?|l|s|m))$"
 
     $NoLRegexDualSizeWithSeparator = "(.*)(\W){1}((\d)?(?(3)(x){1}|x{1,}/{1}(\d)?(?(3)(x){1}|x{1,})))$"
@@ -281,19 +287,20 @@ Function FindSizeAndSplit($PartNumber){
         $PartSize = SizeConverter $Matches[3]
         $DTIPartNum = $Matches[1] + $Matches[2] + $DTISeparator + $PartSize
     }
-    elseif($PartNumber -match $NoNumberRegex){
-        $PartSize = SizeConverter $Matches[3]
-        $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
+    elseif($PartNumber -match $NoNumberRegexMultiX -or $PartNumber -match $NoNumberRegex){
+        $PartSize = SizeConverter $Matches[2]
+        $DTIPartNum = $Matches[1] + $DTISeparator + $PartSize
     }
     elseif($PartNumber -match $NoXorNumRegex){
-        $PartSize = SizeConverter $Matches[3]
-        $DTIPartNum = $Matches[1] + $Matches[5] + $DTISeparator + $PartSize
+        $PartSize = SizeConverter $Matches[2]
+        $DTIPartNum = $Matches[1] + $DTISeparator + $PartSize
     }
     elseif($PartNumber -match $NoLRegexDualSizeWithSeparator -or $PartNumber -match $NoLRegexWithSeparator){
         $PartSize =  SizeConverter $Matches[3]
         $DTIPartNum = $Matches[1] + $DTISeparator + $PartSize
     }
     else{
+        $PartNumber = $PartNumber -replace "\W", "-"
         $DTIPartNum = $PartNumber
     }
     $DTIPartNum
