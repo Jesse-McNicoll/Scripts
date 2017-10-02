@@ -121,12 +121,10 @@ Add-Content -Path $MapFilePath 'Company, VendorID, PartNum, VendPartNum'
             #If there is a size, use a custom string function to splice
             #the size or color, convert it to a DTI standard, and insert it on the end of the part number.
         Add-Content -Path $PriceFilePath "$Company, $NewPartNum, $PartCost, $PUM, , $PartNum, , , , $VendorID "
-                 
-            
-            
-       
+        Add-Content -Path $MapFilePath "$Company, $VendorID, $PartNum, $NewPartNum"
         
     }
+$excel.Quit()
 Write-Host "Script Complete.  Please check the file for inconsistencies."
        
 
