@@ -231,22 +231,26 @@ Function FindSizeAndSplit($PartNumber){
     # COHB35XXXXL ->  COHB35XXX-XL
     #
 
-    #$PartNumber = $PartNumber -replace '\W', '-'
+    #Currently, when a new part-number type is discovered, a regex can be created for it and then placed as the first check in the 
+    # consecutive if statements.  The general progression is from most complex and rare to most common. 
 
-    #Currently, 
+    #Initial Regex Check for dual size parts that have a non-word character separator.  If the size is followed by another non-word
+    # character, this regex will match with additional characters after it.  If there is no secondary separator, this regex will only 
+    # match with 
     $DualSizeRegexWithSeparator = "(.*[\D\w])(\W){1}(\d?x?(?:me?d|lr?g|sml?|l|s|m)/{1}\d?x?(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)$"
 
     $DualSizeRegex = "(.*[\D\w])(\d?x?(?:me?d|lr?g|sml?|l|s|m)/{1}\d?x?(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(3).*|)$"
 
-    $FullSizeRegexWithSeparator = "(.*[\D\w])(\W){1}(\d?x?(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)$"
-
+    $FullSizeRegexWithSeparator = "(.*)(\W){1}(\d?x?(?:me?d|lr?g|sml?|l|s|m))(\W)?(?(4).*|)$"
     
-
+    #These next two regex checks should not be necessary, as the any-character check stops at the separator for parts with a separator.
+   
     #$NoNumberRegexWithSeparator = "(.*)(\W{1})(x+(?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
 
     #$NoXorNumRegexWithSeparator = "(.*)(\W{1})((?:me?d|lr?g|sml?|l|s|m))(\W?)(.*)"
 
-    #This regex incorporates a look-behind to make sure only one digit precedes an XL size.
+    #This regex should incorporate a look-behind to make sure only one digit precedes an XL size. However,
+    # right now it just uses a clunky mandatory non-digit before the digit preceding the X modifier.
     $FullSizeRegexOneDigit = "(.*)(\D{1})(\d{1}x+(?:me?d|lr?g|sml?|l|s|m){1})$"
     
     #This regex currently catches parts with multi-digit numbers preceding an X and also any non-dual
@@ -259,9 +263,14 @@ Function FindSizeAndSplit($PartNumber){
     #This regex matches parts that do not have x modifier's before the letter size.
     $NoXorNumRegex = "(.*)((?:me?d|lr?g|sml?|l|s|m))$"
 
+    #This regex accounts for dual sizes that might have no L after the x modifier
     $NoLRegexDualSizeWithSeparator = "(.*)(\W){1}((\d)?(?(3)(x){1}|x{1,}/{1}(\d)?(?(3)(x){1}|x{1,})))$"
 
+    #This regex accounts for sizes with only x modifiers and with a separator
     $NoLRegexWithSeparator = "(.*)(\W){1}((\d)?(?(3)(x){1}|x{1,}))$"
+
+    #Is a regex for no-L parts without a separator necessary?  It might not be possible to distinguish these parts from actual sizes.
+    #Parts with multiple x's in the base part number and also multiple x's in the size?  Perhaps look-aheads can be used to account for this situation.
     
     if($PartNumber -match $DualSizeRegexWithSeparator){
         $PartSize = ExtendedSizeConverter $Matches[3]
